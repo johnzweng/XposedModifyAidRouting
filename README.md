@@ -1,9 +1,9 @@
-# Xposed Module Catch-All Routing
+# Xposed Module NFC AID Re-Routing
 
 ### Module for NFC Host-Card-Emulation (HCE) Catch-All Routing ##
 
 Tested with Android 4.4.1
-<br/><br/>
+<br/>
 
 
 ### What's this ##
@@ -21,7 +21,7 @@ Tested with Android 4.4.1
 	> Otherwise (if no app has registered this AID) it simply responds with `Application not found` to the card terminal and no app will ever be informed about the incoming APDU message.
 
 
-### What this module can do for you?
+### What this module can do for you:
 
 - If this module is enabled, it completly **OVERRIDES** the AID routing mechanism of Android. So **ALL incoming APDUs for ALL application identifier will be routed** to the app which has registered the "super special magic" AID "**F04E66E75C02D8**".
 
@@ -29,9 +29,13 @@ Tested with Android 4.4.1
 - **All your APDU are belong to us! :-)**
 
 
-### Where to look for further info?
+### Where to look for further info:
 
 - This module alone does nothing. You need to implement a `HostApduService` and register it for the AID `F04E66E75C02D8` in the AndroidManifest.xml.
 
 - You will find all infos how this is done and lots of other useful infos on the Android developer documentation pages: [Host-based Card Emulation](https://developer.android.com/guide/topics/connectivity/nfc/hce.html) 
+
+- Wikipedia on [ISO 7816-4 Smart Card APDU](https://en.wikipedia.org/wiki/Smart_card_application_protocol_data_unit)
+
+- Webpage with lot of interesting [infos on some standardized APDU commands](http://www.cardwerk.com/smartcards/smartcard_standard_ISO7816-4_5_basic_organizations.aspx)
 
