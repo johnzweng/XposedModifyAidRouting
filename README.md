@@ -2,13 +2,14 @@
 
 ### Module for NFC Host-Card-Emulation (HCE) Catch-All Routing ##
 
-Tested with Android 4.4.1
+- Tested with Android 4.4.1
+- Tested with Android 4.4.4 *(cyanogenmod 11-20141022-NIGHTLY-hammerhead on a LG Nexus 5)*
 <br/>
 
 
 ### What's this ##
 
-- This is a module for the [Xposed Framework](http://repo.xposed.info/). You need to have installed the Xposed framework (which is not made by me) on your phone. You need to have root for the Xposed framework (but not for this module).
+- This is a module for the [Xposed Framework](http://repo.xposed.info/). You need to have installed the Xposed framework (which is not made by me) on your phone. You need to have root to be able to install the Xposed framework (but no root is needed for this Xposed module).
 
 ### NFC Card-Emulation Background
 - With Android 4.4 (KitKat) Google introduced NFC Host-Card-Emulation, which allows your phone to act as a NFC-SmartCard. App developers now can create special apps which handle all the incoming NFC data packets and response like a ISO 7816-4 SmartCard would do it.
