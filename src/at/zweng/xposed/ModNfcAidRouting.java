@@ -119,38 +119,53 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 					return;
 				}
 
-				// now try to get the field 'services' of this
-				// AidResolveInfo instance and simply grab the
-				// first entry in the list (which is hopefully our 'special
-				// magic catch-all' service.
-				Field resolveInfoservicesField = findField(
-						aidResolveInfoObjectOfOurService.getClass(), "services");
-				List aidResolveInfoServicesList = (List) resolveInfoservicesField
+				// the ApduServiceInfo instance of the ApduService which
+				// registered the *magic* AID
+				Object apduServiceInfoOfOurService;
+
+				// first check if the field "ApduServiceInfo defaultService" of
+				// the returned "AidResolveInfo" object is != null (so that we
+				// would return the default service for the AID if there are
+				// more than 1 registered ApduServices for the magic AID)
+				Field resolveInfoDefaultServiceField = findField(
+						aidResolveInfoObjectOfOurService.getClass(),
+						"defaultService");
+				Object apduServiceInfoDefaultService = resolveInfoDefaultServiceField
 						.get(aidResolveInfoObjectOfOurService);
-				if (aidResolveInfoServicesList == null) {
-					XposedBridge
-							.log("ModNfcAidRouting: ERROR: The field 'services' of the AidResolveInfo instance we got from 'mAidCache' seemed was null. This is not as expected! Can do nothing. Bye.");
-					return;
+				if (apduServiceInfoDefaultService != null) {
+					apduServiceInfoOfOurService = apduServiceInfoDefaultService;
 				}
-				if (aidResolveInfoServicesList.size() == 0) {
-					XposedBridge
-							.log("ModNfcAidRouting: ERROR: The List<ApduServiceInfo> 'services' of the AidResolveInfo instance we got from 'mAidCache' contains 0 entries. Can do nothing. Bye.");
-					return;
+				// else: if the "defaultService" field was null, then look into
+				// the "services" list and return the first element
+				else {
+					// try to get the field 'services' of this
+					// AidResolveInfo instance and simply grab the
+					// first entry in the list (which is hopefully our 'special
+					// magic catch-all' service.
+					Field resolveInfoservicesField = findField(
+							aidResolveInfoObjectOfOurService.getClass(),
+							"services");
+					List aidResolveInfoServicesList = (List) resolveInfoservicesField
+							.get(aidResolveInfoObjectOfOurService);
+					if (aidResolveInfoServicesList == null) {
+						XposedBridge
+								.log("ModNfcAidRouting: ERROR: The field 'services' of the AidResolveInfo instance we got from 'mAidCache' seemed was null. This is not as expected! Can do nothing. Bye.");
+						return;
+					}
+					if (aidResolveInfoServicesList.size() == 0) {
+						XposedBridge
+								.log("ModNfcAidRouting: ERROR: The List<ApduServiceInfo> 'services' of the AidResolveInfo instance we got from 'mAidCache' contains 0 entries. Can do nothing. Bye.");
+						return;
+					}
+
+					// get the first object out of the list:
+					// The should be now an instance of
+					// android.nfc.cardemulation.ApduServiceInfo
+					// describing our catch-all service (which we
+					// will then return). :-)
+					apduServiceInfoOfOurService = aidResolveInfoServicesList
+							.get(0);
 				}
-
-				// get the first object out of the list:
-				// The should be now an instance of
-				// android.nfc.cardemulation.ApduServiceInfo
-				// describing our catch-all service (which we
-				// will then return). :-)
-
-				// TODO: do not simply return the FIRST object, but the DEFAULT
-				// registered ApduService for our *magic* AID. This would allow
-				// to check ApduServiceDevelopers to check within their apps if
-				// they are the default receiver of this APDU (with
-				// "isDefaultServiceForAid").
-				Object apduServiceInfoOfOurService = aidResolveInfoServicesList
-						.get(0);
 
 				// Ok, now we try to create an instance of the
 				// method's response type object:
@@ -195,9 +210,11 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 						resultInstanceAidResolveInfo.getClass(), "aid");
 				aidField.set(resultInstanceAidResolveInfo, aidArg);
 				param.setResult(resultInstanceAidResolveInfo);
-				XposedBridge
-						.log("ModNfcAidRouting: resolveAidPrefix() SUCCESS! Rerouted the AID "
-								+ aidArg + " to OUR catch-all service! :-)");
+				// Commented out this log statement as Xposed logging is mainly
+				// meant for errors (and this could get logged a lot)
+				// XposedBridge
+				// .log("ModNfcAidRouting: resolveAidPrefix() SUCCESS! Rerouted the AID "
+				// + aidArg + " to OUR catch-all service! :-)");
 				return;
 			} catch (Exception e) {
 				XposedBridge
