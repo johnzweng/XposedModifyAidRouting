@@ -21,7 +21,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
  * (even those PDUs for AIDs which are not declared in the ApduService app
  * Manifest).<br>
  * <br>
- * <b>Tested on Android 4.4.1</b> <br>
+ * <b>Tested on Android 4.4.4 (cyanogenmod 11-20141022-NIGHTLY-hammerhead) on a
+ * LG Nexus 5</b> <br>
  * <br>
  * For Clarification: This app here (which you are looking right now) is NOT a
  * ApduServie for Host-Card-Emulation. It just modifies the AID routing
@@ -40,16 +41,17 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 	private static final String TARGET_PACKAGE = "com.android.nfc";
 
 	/**
-	 * This (hardcoded) AID is the one you have-to use in our catch-all APDU
+	 * This (hardcoded) AID is the one you have-to use in your catch-all APDU
 	 * Service application manifest. Then all requests for unknwon AIDS will be
 	 * re-routed to the application registered under this special AID.<br>
-	 * I just created this AID randomly.
+	 * (If you ask: I just created this AID randomly, it has no special meaning
+	 * whatsover.)
 	 */
 	private static final String SPECIAL_MAGIC_CATCH_ALL_SERVICE_AID = "F04E66E75C02D8";
 
 	/**
 	 * Our method hook for the "resolveAidPrefix" method in
-	 * "RegisteredAidCache.java" (http://goo.gl/GBNKif) where the AID matching
+	 * "RegisteredAidCache.java" (http://goo.gl/ACY97J) where the AID matching
 	 * and routing is performed.
 	 */
 	private final XC_MethodHook resolveAidPrefixHook = new XC_MethodHook() {
@@ -141,6 +143,12 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 				// android.nfc.cardemulation.ApduServiceInfo
 				// describing our catch-all service (which we
 				// will then return). :-)
+
+				// TODO: do not simply return the FIRST object, but the DEFAULT
+				// registered ApduService for our *magic* AID. This would allow
+				// to check ApduServiceDevelopers to check within their apps if
+				// they are the default receiver of this APDU (with
+				// "isDefaultServiceForAid").
 				Object apduServiceInfoOfOurService = aidResolveInfoServicesList
 						.get(0);
 
@@ -159,6 +167,7 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 				Constructor<?> ctor = innerClassType
 						.getDeclaredConstructor(registeredAidCacheInstance
 								.getClass());
+				ctor.setAccessible(true);
 				Object resultInstanceAidResolveInfo = ctor
 						.newInstance(registeredAidCacheInstance);
 
