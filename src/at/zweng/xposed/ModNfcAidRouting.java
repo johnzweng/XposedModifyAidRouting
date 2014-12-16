@@ -50,6 +50,33 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 	private static final String SPECIAL_MAGIC_CATCH_ALL_SERVICE_AID = "F04E66E75C02D8";
 
 	/**
+	 * Our method hook for the "findSelectAid" method in
+	 * "HostEmulationManager.java"
+	 */
+	private final XC_MethodHook findSelectAidHook = new XC_MethodHook() {
+		@Override
+		protected void beforeHookedMethod(MethodHookParam param)
+				throws Throwable {
+			XposedBridge.log("ModNfcAidRouting: findSelectAid() called...");
+			final byte[] data = (byte[]) param.args[0];
+			final int len = data.length;
+
+			if (data != null && len > 0) {
+				try {
+					XposedBridge
+							.log("ModNfcAidRouting: findSelectAid() SUCCESS! Returned our AID! :-)");
+					param.setResult(SPECIAL_MAGIC_CATCH_ALL_SERVICE_AID);
+				} catch (Exception e) {
+					XposedBridge
+							.log("ModNfcAidRouting: ERROR: Catched exception during findSelectAidHook: "
+									+ e + ": " + e.getMessage());
+					return;
+				}
+			}
+		}
+	};
+
+	/**
 	 * Our method hook for the "resolveAidPrefix" method in
 	 * "RegisteredAidCache.java" (http://goo.gl/ACY97J) where the AID matching
 	 * and routing is performed.
@@ -212,9 +239,9 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 				param.setResult(resultInstanceAidResolveInfo);
 				// Commented out this log statement as Xposed logging is mainly
 				// meant for errors (and this could get logged a lot)
-				// XposedBridge
-				// .log("ModNfcAidRouting: resolveAidPrefix() SUCCESS! Rerouted the AID "
-				// + aidArg + " to OUR catch-all service! :-)");
+				XposedBridge
+						.log("ModNfcAidRouting: resolveAidPrefix() SUCCESS! Rerouted the AID "
+								+ aidArg + " to OUR catch-all service! :-)");
 				return;
 			} catch (Exception e) {
 				XposedBridge
@@ -255,5 +282,20 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 							+ e + ", " + e.getMessage());
 			XposedBridge.log(e);
 		}
+
+		try {
+			findAndHookMethod(
+					"com.android.nfc.cardemulation.HostEmulationManager",
+					lpparam.classLoader, "findSelectAid", byte[].class,
+					findSelectAidHook);
+			XposedBridge
+					.log("ModNfcAidRouting: findSelectAid() method hook in place! Let the fun begin! :-)");
+		} catch (Exception e) {
+			XposedBridge
+					.log("ModNfcAidRouting: could not hook findSelectAid(...). Exception: "
+							+ e + ", " + e.getMessage());
+			XposedBridge.log(e);
+		}
+
 	}
 }
