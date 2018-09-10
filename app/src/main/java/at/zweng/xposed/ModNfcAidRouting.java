@@ -8,6 +8,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -288,14 +289,22 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
         //
         // 1) Try to hook "resolveAidPrefix" or "resolveAid" method, whatever exists
         //
+        // TODO: clean this up a little bit..
         try {
-            findAndHookMethod(
-                    "com.android.nfc.cardemulation.RegisteredAidCache",
-                    lpparam.classLoader, "resolveAidPrefix", String.class, // <-- resolveAidPrefix
-                    resolveAidHook);
-            // log succesful hooking! :-)
-            XposedBridge
-                    .log("ModNfcAidRouting: resolveAidPrefix() method hook in place! Let the fun begin! :-)");
+            Method resolveAidPrefixMethodToHook = findMethodExactIfExists("com.android.nfc.cardemulation.RegisteredAidCache",
+                    lpparam.classLoader, "resolveAidPrefix", String.class);
+            if (resolveAidPrefixMethodToHook != null) {
+                findAndHookMethod(
+                        "com.android.nfc.cardemulation.RegisteredAidCache",
+                        lpparam.classLoader, "resolveAidPrefix", String.class, // <-- resolveAidPrefix
+                        resolveAidHook);
+                // log succesful hooking! :-)
+                XposedBridge
+                        .log("ModNfcAidRouting: resolveAidPrefix() method hook in place! Let the fun begin! :-)");
+            } else {
+                XposedBridge
+                        .log("ModNfcAidRouting: resolveAidPrefix() method doesn't seem to exist.");
+            }
         } catch (Exception e) {
             XposedBridge
                     .log("ModNfcAidRouting: could not hook resolveAidPrefix(...). Exception: "
@@ -303,14 +312,22 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
             XposedBridge.log(e);
         }
 
+
         try {
-            findAndHookMethod(
-                    "com.android.nfc.cardemulation.RegisteredAidCache",
-                    lpparam.classLoader, "resolveAid", String.class, // <-- resolveAid
-                    resolveAidHook);
-            // log succesful hooking! :-)
-            XposedBridge
-                    .log("ModNfcAidRouting: resolveAid() method hook in place! Let the fun begin! :-)");
+            Method resolveAidMethodToHook = findMethodExactIfExists("com.android.nfc.cardemulation.RegisteredAidCache",
+                    lpparam.classLoader, "resolveAid", String.class);
+            if (resolveAidMethodToHook != null) {
+                findAndHookMethod(
+                        "com.android.nfc.cardemulation.RegisteredAidCache",
+                        lpparam.classLoader, "resolveAid", String.class, // <-- resolveAid
+                        resolveAidHook);
+                // log succesful hooking! :-)
+                XposedBridge
+                        .log("ModNfcAidRouting: resolveAid() method hook in place! Let the fun begin! :-)");
+            } else {
+                XposedBridge
+                        .log("ModNfcAidRouting: resolveAid() method doesn't seem to exist.");
+            }
         } catch (Exception e) {
             XposedBridge
                     .log("ModNfcAidRouting: could not hook resolveAid(...). Exception: "

@@ -4,6 +4,11 @@
 
 - Tested with Android 4.4.1
 - Tested with Android 4.4.4 *(cyanogenmod 11-20141022-NIGHTLY-hammerhead on a LG Nexus 5)*
+- Tested with Android 7.1.2
+- *Should* work with Android 8.0.0 (not tested, just by looking at Android sourcecode)
+- *Should* work with Android 8.1.0 (not tested, just by looking at Android sourcecode)
+- *Should* work with Android 8.1.0 (not tested, just by looking at Android sourcecode)
+- *Should* work with Android 9.0.0 (not tested, just by looking at Android sourcecode)
 <br/>
 
 
