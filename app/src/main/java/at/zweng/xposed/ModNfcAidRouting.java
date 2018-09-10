@@ -19,23 +19,23 @@ import static de.robv.android.xposed.XposedHelpers.findField;
  * (https://en.wikipedia.org/wiki/Application_protocol_data_unit) for all AIDs
  * (ISO 7816-4 application identifier) to a single one "catch-all" ApduService
  * (even those PDUs for AIDs which are not declared in the ApduService app
- * Manifest).<br>
- * <br>
- * <b>Tested on Android 4.4.4 (cyanogenmod 11-20141022-NIGHTLY-hammerhead) on a
- * LG Nexus 5</b> <br>
- * <br>
+ * Manifest).
+ *
+ * Tested on Android 4.4.4 (cyanogenmod 11-20141022-NIGHTLY-hammerhead) on a
+ * LG Nexus 5
+ *
  * For Clarification: This app here (which you are looking right now) is NOT a
  * ApduServie for Host-Card-Emulation. It just modifies the AID routing
  * mechanism of Android, to forward all APDUs to a single ApduService app (which
- * you have to develop yourself).<br>
- * <br>
- * <b>This will override ALL AID routing</b>, so the "catch-all" app will
+ * you have to develop yourself).
+ *
+ * This will override ALL AID routing, so the "catch-all" app will
  * receive ALL APDUs even if there are other ApduService apps installed which
- * declare the AID in their manifest. <br>
- * <br>
+ * declare the AID in their manifest.
+ *
  * Licensed under GPL-3
  *
- * @author Johannes Zweng, <john@zweng.at>, 16.12.2013
+ * @author Johannes Zweng, john@zweng.at, 16.12.2013
  */
 public class ModNfcAidRouting implements IXposedHookLoadPackage {
     private static final String TARGET_PACKAGE = "com.android.nfc";
@@ -43,7 +43,7 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
     /**
      * This (hardcoded) AID is the one you have-to use in your catch-all APDU
      * Service application manifest. Then all requests for unknwon AIDS will be
-     * re-routed to the application registered under this special AID.<br>
+     * re-routed to the application registered under this special AID.
      * (If you ask: I just created this AID randomly, it has no special meaning
      * whatsover.)
      */
@@ -51,7 +51,8 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 
     /**
      * Our method hook for the "findSelectAid" method in
-     * "HostEmulationManager.java"
+     * "HostEmulationManager.java" (https://goo.gl/ebkTY3)
+     * -> android-4.4.4_r2.0.1
      */
     private final XC_MethodHook findSelectAidHook = new XC_MethodHook() {
         @Override
@@ -80,6 +81,7 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
      * Our method hook for the "resolveAidPrefix" method in
      * "RegisteredAidCache.java" (http://goo.gl/ACY97J) where the AID matching
      * and routing is performed.
+     * -> android-4.4.4_r2.0.1
      */
     private final XC_MethodHook resolveAidPrefixHook = new XC_MethodHook() {
 
@@ -108,7 +110,7 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
                 }
 
                 // get the "this" instance (=instance of
-                // "com.android.nfc.cardemulation.RegisteredServicesCache")
+                // "com.android.nfc.cardemulation.RegisteredAidCache")
                 Object registeredAidCacheInstance = param.thisObject;
 
                 // get the "mAidCache" HashMap
@@ -268,6 +270,10 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
         }
         XposedBridge
                 .log("ModNfcAidRouting: we are in com.android.nfc application. :-) Will place method hooks.");
+
+        //
+        // 1) Try to hook "resolveAidPrefix" method
+        //
         try {
             findAndHookMethod(
                     "com.android.nfc.cardemulation.RegisteredAidCache",
@@ -283,19 +289,22 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
             XposedBridge.log(e);
         }
 
-        try {
-            findAndHookMethod(
-                    "com.android.nfc.cardemulation.HostEmulationManager",
-                    lpparam.classLoader, "findSelectAid", byte[].class,
-                    findSelectAidHook);
-            XposedBridge
-                    .log("ModNfcAidRouting: findSelectAid() method hook in place! Let the fun begin! :-)");
-        } catch (Exception e) {
-            XposedBridge
-                    .log("ModNfcAidRouting: could not hook findSelectAid(...). Exception: "
-                            + e + ", " + e.getMessage());
-            XposedBridge.log(e);
-        }
+        //
+        // 2) Try to hook "findSelectAid" method
+        //
+        //        try {
+        //            findAndHookMethod(
+        //                    "com.android.nfc.cardemulation.HostEmulationManager",
+        //                    lpparam.classLoader, "findSelectAid", byte[].class,
+        //                    findSelectAidHook);
+        //            XposedBridge
+        //                    .log("ModNfcAidRouting: findSelectAid() method hook in place! Let the fun begin! :-)");
+        //        } catch (Exception e) {
+        //            XposedBridge
+        //                    .log("ModNfcAidRouting: could not hook findSelectAid(...). Exception: "
+        //                            + e + ", " + e.getMessage());
+        //            XposedBridge.log(e);
+        //        }
 
     }
 }
