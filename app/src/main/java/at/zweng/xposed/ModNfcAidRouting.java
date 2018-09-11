@@ -23,66 +23,51 @@ import static de.robv.android.xposed.XposedHelpers.*;
  * Manifest).
  *
  * Tested on Android 4.4.4 (cyanogenmod 11-20141022-NIGHTLY-hammerhead) on a
- * LG Nexus 5
+ * LG Nexus 5 and on Android 7.1.2 on a LeEco LEX720.
  *
  * For Clarification: This app here (which you are looking right now) is NOT a
  * ApduServie for Host-Card-Emulation. It just modifies the AID routing
  * mechanism of Android, to forward all APDUs to a single ApduService app (which
- * you have to develop yourself).
+ * you have to develop yourself,
+ * see https://developer.android.com/guide/topics/connectivity/nfc/hce).
  *
- * This will override ALL AID routing, so the "catch-all" app will
- * receive ALL APDUs even if there are other ApduService apps installed which
- * declare the AID in their manifest.
+ * This will override ALL AID routing, so the "catch-all" app (the one which
+ * declares the "magic" AID "F04E66E75C02D8" in their manifest) will receive
+ * ALL SELECT APDUs even if there are other ApduService apps installed which
+ * declare their own AIDs. They will never receive anything.
+ *
+ * Please note that this does NOT mean, that all APDUs can be received, as
+ * Android HCE only works with ISO7816-4 like commands, which require that
+ * the first NFC APDU must be a SELECT command.
+ *
+ * If the NFC reader doesn't start with sending a SELECT, you cannot receive
+ * this in Android HCE.
  *
  * Licensed under GPL-3
  *
  * @author Johannes Zweng, john@zweng.at, 16.12.2013
  */
 public class ModNfcAidRouting implements IXposedHookLoadPackage {
+
+    /**
+     * AID routing is done in com.android.nfc system package.
+     */
     private static final String TARGET_PACKAGE = "com.android.nfc";
 
     /**
      * This (hardcoded) AID is the one you have-to use in your catch-all APDU
-     * Service application manifest. Then all requests for unknwon AIDS will be
+     * Service application manifest. Then all requests for unknown AIDS will be
      * re-routed to the application registered under this special AID.
      * (If you ask: I just created this AID randomly, it has no special meaning
-     * whatsover.)
+     * whatsoever.)
      */
     private static final String SPECIAL_MAGIC_CATCH_ALL_SERVICE_AID = "F04E66E75C02D8";
 
     /**
-     * Our method hook for the "findSelectAid" method in
-     * "HostEmulationManager.java" (https://goo.gl/ebkTY3)
-     * -> android-4.4.4_r2.0.1
-     */
-    private final XC_MethodHook findSelectAidHook = new XC_MethodHook() {
-        @Override
-        protected void beforeHookedMethod(MethodHookParam param)
-                throws Throwable {
-            XposedBridge.log("ModNfcAidRouting: findSelectAid() called...");
-            final byte[] data = (byte[]) param.args[0];
-            final int len = data.length;
-
-            if (data != null && len > 0) {
-                try {
-                    XposedBridge
-                            .log("ModNfcAidRouting: findSelectAid() SUCCESS! Returned our AID! :-)");
-                    param.setResult(SPECIAL_MAGIC_CATCH_ALL_SERVICE_AID);
-                } catch (Exception e) {
-                    XposedBridge
-                            .log("ModNfcAidRouting: ERROR: Catched exception during findSelectAidHook: "
-                                    + e + ": " + e.getMessage());
-                    return;
-                }
-            }
-        }
-    };
-
-    /**
      * Our method hook for the "resolveAid" method in
      * "RegisteredAidCache.java" (https://goo.gl/VUo8nt) on Android 7.1.2
-     * and on Android 4.4 for the "resolveAidPrefix" method in
-     * "RegisteredAidCache.java" (http://goo.gl/ACY97J) where the AID matching
+     * and for the "resolveAidPrefix" method in "RegisteredAidCache.java"
+     * in older Android versions (http://goo.gl/ACY97J) where the AID matching
      * and routing is performed.
      */
     private final XC_MethodHook resolveAidHook = new XC_MethodHook() {
@@ -94,18 +79,18 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
             try {
                 // use this classloader for loading objects
                 ClassLoader cls = param.thisObject.getClass().getClassLoader();
-                String aidArg;
+                String aid;
                 if (param.args.length > 0) {
-                    aidArg = (String) param.args[0];
+                    aid = (String) param.args[0];
                     XposedBridge
                             .log("ModNfcAidRouting: resolveAid/Prefix(..) was called. aid = "
-                                    + aidArg);
+                                    + aid);
                 } else {
                     XposedBridge
                             .log("ModNfcAidRouting: resolveAid/Prefix: parameter array seems to be 0-length! Bye.");
                     return;
                 }
-                if (aidArg.length() == 0) {
+                if (aid.length() == 0) {
                     XposedBridge
                             .log("ModNfcAidRouting: resolveAid/Prefix: parameter 'aid' seems to be 0-length! Bye.");
                     return;
@@ -117,21 +102,21 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 
                 // get the "mAidCache" HashMap
                 // (contains all registered APDU services)
-                Field mAidCacheHashMapField = findField(
+                Field mAidCacheMapField = findField(
                         registeredAidCacheInstance.getClass(), "mAidCache");
                 // this HashMap looks like: Map<String,
                 // com.android.nfc.cardemulation.RegisteredAidCache$AidResolveInfo>
-                Map mAidCachedHashMap = (Map) mAidCacheHashMapField
+                Map mAidCachedMap = (Map) mAidCacheMapField
                         .get(registeredAidCacheInstance);
 
-                if (mAidCachedHashMap == null) {
+                if (mAidCachedMap == null) {
                     XposedBridge
-                            .log("ModNfcAidRouting: ERROR: the 'mAidCache' HashMap in the 'RegisteredAidCache' instance was null. Bye.");
+                            .log("ModNfcAidRouting: ERROR: the 'mAidCache' Map in the 'RegisteredAidCache' instance was null. Bye.");
                     return;
                 }
-                if (mAidCachedHashMap.size() == 0) {
+                if (mAidCachedMap.size() == 0) {
                     XposedBridge
-                            .log("ModNfcAidRouting: WARNING: the 'mAidCache' HashMap contains 0 elements. Are you sure you have registered your HostApduService application for an AID?? Bye.");
+                            .log("ModNfcAidRouting: WARNING: the 'mAidCache' Map contains 0 elements. Are you sure you have registered your HostApduService application for an AID?? Bye.");
                     return;
                 }
 
@@ -139,10 +124,10 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
                 // AID out of the mAidCache HashMap (the entry will
                 // be an instance of the inner class
                 // "RegisteredAidCache$AidResolveInfo")
-                Object aidResolveInfoObjectOfOurService = mAidCachedHashMap
+                Object aidResolveInfoObjectOfCatchAllApp = mAidCachedMap
                         .get(SPECIAL_MAGIC_CATCH_ALL_SERVICE_AID);
 
-                if (aidResolveInfoObjectOfOurService == null) {
+                if (aidResolveInfoObjectOfCatchAllApp == null) {
                     XposedBridge
                             .log("ModNfcAidRouting: WARNING: There was no application registered for the 'special magic wildcard' AID "
                                     + SPECIAL_MAGIC_CATCH_ALL_SERVICE_AID
@@ -152,19 +137,19 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 
                 // the ApduServiceInfo instance of the ApduService which
                 // registered the *magic* AID
-                Object apduServiceInfoOfOurService;
+                Object apduServiceInfoOfCatchAllApp;
 
                 // first check if the field "ApduServiceInfo defaultService" of
                 // the returned "AidResolveInfo" object is != null (so that we
                 // would return the default service for the AID if there are
                 // more than 1 registered ApduServices for the magic AID)
                 Field resolveInfoDefaultServiceField = findField(
-                        aidResolveInfoObjectOfOurService.getClass(),
+                        aidResolveInfoObjectOfCatchAllApp.getClass(),
                         "defaultService");
                 Object apduServiceInfoDefaultService = resolveInfoDefaultServiceField
-                        .get(aidResolveInfoObjectOfOurService);
+                        .get(aidResolveInfoObjectOfCatchAllApp);
                 if (apduServiceInfoDefaultService != null) {
-                    apduServiceInfoOfOurService = apduServiceInfoDefaultService;
+                    apduServiceInfoOfCatchAllApp = apduServiceInfoDefaultService;
                 }
                 // else: if the "defaultService" field was null, then look into
                 // the "services" list and return the first element
@@ -174,10 +159,10 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
                     // first entry in the list (which is hopefully our 'special
                     // magic catch-all' service.
                     Field resolveInfoservicesField = findField(
-                            aidResolveInfoObjectOfOurService.getClass(),
+                            aidResolveInfoObjectOfCatchAllApp.getClass(),
                             "services");
                     List aidResolveInfoServicesList = (List) resolveInfoservicesField
-                            .get(aidResolveInfoObjectOfOurService);
+                            .get(aidResolveInfoObjectOfCatchAllApp);
                     if (aidResolveInfoServicesList == null) {
                         XposedBridge
                                 .log("ModNfcAidRouting: ERROR: The field 'services' of the AidResolveInfo instance we got from 'mAidCache' seemed was null. This is not as expected! Can do nothing. Bye.");
@@ -194,7 +179,7 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
                     // android.nfc.cardemulation.ApduServiceInfo
                     // describing our catch-all service (which we
                     // will then return). :-)
-                    apduServiceInfoOfOurService = aidResolveInfoServicesList
+                    apduServiceInfoOfCatchAllApp = aidResolveInfoServicesList
                             .get(0);
                 }
 
@@ -202,45 +187,40 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
                 // method's response type object:
                 // com.android.nfc.cardemulation.RegisteredAidCache$AidResolveInfo
                 //
-                // As this is an inner class of
-                // 'RegisteredAidCache' this is done a little
-                // different than with normal classes (we need
-                // first to get a Constructor object for this
-                // inner class)
+                // As this is an inner class of 'RegisteredAidCache' this is
+                // done a little different than with normal classes (we need
+                // first to get a Constructor object for this inner class).
                 Class innerClassType;
-                innerClassType = cls
-                        .loadClass("com.android.nfc.cardemulation.RegisteredAidCache$AidResolveInfo");
+                innerClassType = cls.loadClass(
+                        "com.android.nfc.cardemulation.RegisteredAidCache$AidResolveInfo");
                 Constructor<?> ctor = innerClassType
-                        .getDeclaredConstructor(registeredAidCacheInstance
-                                .getClass());
+                        .getDeclaredConstructor(registeredAidCacheInstance.getClass());
                 ctor.setAccessible(true);
                 Object resultInstanceAidResolveInfo = ctor
                         .newInstance(registeredAidCacheInstance);
 
-                // set the field "services" in the response
-                // object (and let it contain only our catch-all
-                // service)
+                // set the field "services" in the response object (and let
+                // it contain only the catch-all app)
                 List ourServicesList = new ArrayList();
-                ourServicesList.add(apduServiceInfoOfOurService);
+                ourServicesList.add(apduServiceInfoOfCatchAllApp);
                 Field servicesField = findField(
                         resultInstanceAidResolveInfo.getClass(), "services");
                 servicesField
                         .set(resultInstanceAidResolveInfo, ourServicesList);
 
-                // set field "defaultService" (to our catch-all
-                // service)
+                // set field "defaultService" (to the catch-all app)
                 Field defaultServiceField = findField(
                         resultInstanceAidResolveInfo.getClass(),
                         "defaultService");
                 defaultServiceField.set(resultInstanceAidResolveInfo,
-                        apduServiceInfoOfOurService);
+                        apduServiceInfoOfCatchAllApp);
 
                 // and set the field "aid" to the AID which was
                 // asked for (if it exists, as this doesn't exist on older platforms)
                 Field aidField = findFieldIfExists(
                         resultInstanceAidResolveInfo.getClass(), "aid");
                 if (aidField != null) {
-                    aidField.set(resultInstanceAidResolveInfo, aidArg);
+                    aidField.set(resultInstanceAidResolveInfo, aid);
                 }
 
                 // and set the field "category" to CATEGORY_PAYMENT
@@ -253,13 +233,9 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
 
                 // and replace the method's result with our object
                 param.setResult(resultInstanceAidResolveInfo);
-
-                // Commented out this log statement as Xposed logging is mainly
-                // meant for errors (and this could get logged a lot)
                 XposedBridge
                         .log("ModNfcAidRouting: resolveAid/Prefix() SUCCESS! Rerouted the AID "
-                                + aidArg + " to OUR catch-all service! :-)");
-                return;
+                                + aid + " to OUR catch-all service! :-)");
             } catch (Exception e) {
                 XposedBridge
                         .log("ModNfcAidRouting: resolveAid/Prefix() error in beforeHookedMethod: \n"
@@ -279,19 +255,20 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
         // we just place the method hook here
         //
         if (!TARGET_PACKAGE.equals(lpparam.packageName)) {
-            // XposedBridge.log("ModNfcAidRouting: ignoring package: "
-            // + lpparam.packageName);
             return;
         }
         XposedBridge
-                .log("ModNfcAidRouting: we are in com.android.nfc application. :-) Will place method hooks.");
+                .log("ModNfcAidRouting: we are in com.android.nfc " +
+                        "application. :-) Will place method hooks.");
 
         //
-        // 1) Try to hook "resolveAidPrefix" or "resolveAid" method, whatever exists
+        // Try to hook "resolveAidPrefix" or "resolveAid" method, whatever exists
         //
-        // TODO: clean this up a little bit..
+
+        // try "resolveAidPrefix"
         try {
-            Method resolveAidPrefixMethodToHook = findMethodExactIfExists("com.android.nfc.cardemulation.RegisteredAidCache",
+            Method resolveAidPrefixMethodToHook = findMethodExactIfExists(
+                    "com.android.nfc.cardemulation.RegisteredAidCache",
                     lpparam.classLoader, "resolveAidPrefix", String.class);
             if (resolveAidPrefixMethodToHook != null) {
                 findAndHookMethod(
@@ -312,9 +289,10 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
             XposedBridge.log(e);
         }
 
-
+        // now try "resolveAid"
         try {
-            Method resolveAidMethodToHook = findMethodExactIfExists("com.android.nfc.cardemulation.RegisteredAidCache",
+            Method resolveAidMethodToHook = findMethodExactIfExists(
+                    "com.android.nfc.cardemulation.RegisteredAidCache",
                     lpparam.classLoader, "resolveAid", String.class);
             if (resolveAidMethodToHook != null) {
                 findAndHookMethod(
@@ -334,24 +312,5 @@ public class ModNfcAidRouting implements IXposedHookLoadPackage {
                             + e + ", " + e.getMessage());
             XposedBridge.log(e);
         }
-
-
-        //
-        // 2) Try to hook "findSelectAid" method
-        //
-        //        try {
-        //            findAndHookMethod(
-        //                    "com.android.nfc.cardemulation.HostEmulationManager",
-        //                    lpparam.classLoader, "findSelectAid", byte[].class,
-        //                    findSelectAidHook);
-        //            XposedBridge
-        //                    .log("ModNfcAidRouting: findSelectAid() method hook in place! Let the fun begin! :-)");
-        //        } catch (Exception e) {
-        //            XposedBridge
-        //                    .log("ModNfcAidRouting: could not hook findSelectAid(...). Exception: "
-        //                            + e + ", " + e.getMessage());
-        //            XposedBridge.log(e);
-        //        }
-
     }
 }

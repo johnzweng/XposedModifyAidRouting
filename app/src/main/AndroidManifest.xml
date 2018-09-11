@@ -11,10 +11,10 @@
                 android:value="true"/>
         <meta-data
                 android:name="xposedminversion"
-                android:value="2.0*"/>
+                android:value="82"/>
         <meta-data
                 android:name="xposeddescription"
-                android:value="Allows &apos;catch-all&apos; routing for NFC Host-Card-Emulation. Only works with Android 4.4 and above."/>
+                android:value="Allows &apos;catch-all&apos; routing for NFC Host-Card-Emulation. This module alone does nothing! This is an helper module for app developers. An NFC HCE app developer can use it to receive all SELECT APDUs (not just the ones the app registered for)."/>
     </application>
 
 </manifest>
