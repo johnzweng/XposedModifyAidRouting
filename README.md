@@ -1,4 +1,4 @@
-# Xposed Module NFC AID Re-Routing
+# Xposed Module NFC HCE Catch-All-Routing
 
 ### Module for NFC Host-Card-Emulation (HCE) Catch-All Routing ##
 
@@ -91,3 +91,9 @@ Allows NFC HCE apps to receive APDUs for **every** AID and not only their own.
 - Wikipedia on [ISO 7816-4 Smart Card APDU](https://en.wikipedia.org/wiki/Smart_card_application_protocol_data_unit)
 
 - Webpage with lot of interesting [infos on some standardized APDU commands](http://www.cardwerk.com/smartcards/smartcard_standard_ISO7816-4_5_basic_organizations.aspx)
+
+
+### Links
+
+ - [Thread on xda-developers](https://forum.xda-developers.com/showthread.php?t=2573430)
+ - [Entry in Xposed repository](http://repo.xposed.info/module/at.zweng.xposed.modifyaidrouting)
